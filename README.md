@@ -1,0 +1,1 @@
+# plugins-yaad-sarig-payment-gateway-for-wc
