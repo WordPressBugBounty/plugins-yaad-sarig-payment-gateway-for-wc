@@ -3,8 +3,8 @@ Contributors: Yaad Sarig, 10bit
 Donate link: 
 Tags: wc, payments
 Requires at least: 6.0
-Tested up to: 6.3
-Stable tag: 2.2.3
+Tested up to: 6.7
+Stable tag: 2.2.4
 Requires PHP: 5.4
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
@@ -72,5 +72,6 @@ This section describes how to install the plugin and get it working.
 2.2.1- Updated new WC version 8
 2.2.2- support hyp invoice
 2.2.3- Updated new WC version 9
+2.2.4- fix vat issue and change templates link
 == Upgrade Notice ==
 

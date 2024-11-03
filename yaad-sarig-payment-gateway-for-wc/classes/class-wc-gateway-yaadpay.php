@@ -81,6 +81,14 @@ final class WC_Gateway_Yaadpay extends WC_Payment_Gateway
         return $this->invoice_options;
     }
 
+        /**
+     * @return string
+     */
+    public function getYaadVat()
+    {
+        return $this->tax_settings;
+    }
+
     /**
      * @return string
      */
@@ -175,6 +183,7 @@ final class WC_Gateway_Yaadpay extends WC_Payment_Gateway
     private $invoice_options;
     private $hyp_invoices;
     private $data_in_invoice;
+    private $tax_settings;
     private $apple_pay;
     private $yaad_tiered_payments;
     private $maxPayments;
@@ -230,6 +239,7 @@ final class WC_Gateway_Yaadpay extends WC_Payment_Gateway
         $this->yaad_currency = $this->get_option('yaad_currency');
         $this->invoice_options = $this->get_option('invoice_options');
         $this->data_in_invoice = $this->get_option('data_in_invoice');
+        $this->tax_settings = $this->get_option('tax_settings');
         $this->apple_pay = $this->get_option('apple_pay');
         $this->yaad_payment_type = $this->get_option('yaad_payment_type');
         $this->yaad_subscriptions = $this->get_option('yaad_subscriptions');
@@ -664,6 +674,16 @@ final class WC_Gateway_Yaadpay extends WC_Payment_Gateway
                 'desc_tip' => __('Support Invoices', 'yaad-sarig-payment-gateway-for-wc'),
             ),
 
+            'tax_settings' => array(
+                'title' => __('Tax settings', 'yaad-sarig-payment-gateway-for-wc'),
+                'type' => 'select',
+                'options' => array(
+                    'default' => __('Default', 'yaad-sarig-payment-gateway-for-wc'),
+                    'WC_settings' => __('WC settings', 'yaad-sarig-payment-gateway-for-wc'),
+                ),
+                'default' => 'default',
+            ),
+
             'yaad_payment_type' => array(
                 'title' => __('Payment type', 'yaad-sarig-payment-gateway-for-wc'),
                 'type' => 'select',
@@ -804,7 +824,7 @@ final class WC_Gateway_Yaadpay extends WC_Payment_Gateway
             'yaad_template' => array(
                 'title' => __(' Payment Page Template', 'yaad-sarig-payment-gateway-for-wc'),
                 'type' => 'number',
-                'description' => __('<a href="https://yaadpay.yaad.net/developers/article.php?id=67" target="_blank">Click Here</a> to see a list of available templates', 'yaad-sarig-payment-gateway-for-wc'),
+                'description' => __('<a href="https://hypay.docs.apiary.io/#introduction/selecting-template" target="_blank">Click Here</a> to see a list of available templates', 'yaad-sarig-payment-gateway-for-wc'),
                 'default' => '6',
             ),
         );
@@ -1356,30 +1376,65 @@ final class WC_Gateway_Yaadpay extends WC_Payment_Gateway
         $all_tax_rates = [];
         $taxes = [];
         $tax_classes = WC_Tax::get_tax_classes($all_tax_rates); //Get store tax class names
-        $taxes = WC_Tax::get_rates_for_tax_class($tax_classes[0][2]); //
-        if(isset($taxes)) {
-            foreach ($taxes as $stdClass) { // For each tax class, get all rates.
-                if ($stdClass->tax_rate_country == $billing_country) {
-                    if (($billing_country == 'IL')) {
-                        if ($billing_city == 'Eilat' || $billing_city == 'אילת'){
-                            $yaadpay_args['EZ.vat'] = 0;
-                        } else {
-                            $yaadpay_args['EZ.vat'] = (int)($stdClass->tax_rate);
+        $taxes = WC_Tax::get_rates_for_tax_class($tax_classes[0][2]); //Get all tax objs
+
+        if($this->tax_settings == 'default'){
+            if(isset($taxes)) {
+                foreach ($taxes as $stdClass) { // For each tax class, get all rates.
+                    if ($stdClass->tax_rate_country == $billing_country) {
+                        if (($billing_country == 'IL')) {
+                            if ($billing_city == 'Eilat' || $billing_city == 'אילת'){
+                                $yaadpay_args['EZ.vat'] = 0;
+                            } else {
+                                $yaadpay_args['EZ.vat'] = (int)($stdClass->tax_rate);
+                            }
+                            return $yaadpay_args;
                         }
-                        return $yaadpay_args;
-                    }
-                    else {
-                        $yaadpay_args['EZ.vat'] = (int)($stdClass->tax_rate);
-                        return $yaadpay_args;
+                        else {
+                            $yaadpay_args['EZ.vat'] = (int)($stdClass->tax_rate);
+                            return $yaadpay_args;
+                        }
                     }
                 }
             }
+            if($yaadpay_args['PageLang'] == 'HEB'){
+                $yaadpay_args['EZ.vat'] = 17;
+                return $yaadpay_args;
+            }
+        } else {
+            if (get_option('woocommerce_calc_taxes') === 'yes') {
+                if(isset($taxes) && !empty($taxes)) {
+                    foreach ($taxes as $stdClass) { //For each tax class, get all rates.
+                        if ($stdClass->tax_rate_country == $billing_country) {
+                            if (($billing_country == 'IL')) {
+                                if ($billing_city == 'Eilat' || $billing_city == 'אילת'){
+                                    $yaadpay_args['EZ.vat'] = 0;
+                                } else {
+                                    $yaadpay_args['EZ.vat'] = (int)($stdClass->tax_rate);
+                                }
+                                return $yaadpay_args;
+                            }
+                            else {
+                                $yaadpay_args['EZ.vat'] = (int)($stdClass->tax_rate);
+                                return $yaadpay_args;
+                            }
+                        }
+                    }
+                } else {
+                    if ($billing_city == 'Eilat' || $billing_city == 'אילת') {
+                        $yaadpay_args['EZ.vat'] = 0;
+                        return $yaadpay_args;
+                    }
+                    if($yaadpay_args['PageLang'] == 'HEB') {
+                        $yaadpay_args['EZ.vat'] = 17;
+                         return $yaadpay_args;
+                    }
+                }
+            } else {
+                $yaadpay_args['EZ.vat'] = 0;
+                return $yaadpay_args;
+            }
         }
-        if($yaadpay_args['PageLang'] == 'HEB'){
-            $yaadpay_args['EZ.vat'] = 17;
-            return $yaadpay_args;
-        }
-
         return $yaadpay_args;
     }
 
