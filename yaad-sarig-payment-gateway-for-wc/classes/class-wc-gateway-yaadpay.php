@@ -1363,6 +1363,7 @@ final class WC_Gateway_Yaadpay extends WC_Payment_Gateway
 
     public function assign_ezcount_param(tb_wc_order $order, $yaadpay_args){
 
+        unset($yaadpay_args['EZ.vat']);
         //Assign ezVat and ezLang by WC_Tax rate
         $invoice_lang = $this->invoice_language;
         if ($this->invoice_language == 'auto') {
@@ -1370,7 +1371,8 @@ final class WC_Gateway_Yaadpay extends WC_Payment_Gateway
         }
         $invoice_lang = $invoice_lang == "HEB" ? "he" : "en";
         $yaadpay_args['EZ.lang'] = $invoice_lang;
-        $yaadpay_args['EZ.vat'] = '0';
+        //$yaadpay_args['EZ.vat'] = '0';
+
         $billing_country = $order->get_billing_country();
         $billing_city = $order->get_billing_city();
         $all_tax_rates = [];
@@ -1398,7 +1400,14 @@ final class WC_Gateway_Yaadpay extends WC_Payment_Gateway
                 }
             }
             if($yaadpay_args['PageLang'] == 'HEB'){
-                $yaadpay_args['EZ.vat'] = 17;
+                $timezone = wp_timezone(); 
+                $current_date = new DateTime('now', $timezone);
+                $change_date = new DateTime('2025-01-01', $timezone);
+                if ($current_date >= $change_date) {
+                    $yaadpay_args['EZ.vat'] = 18; 
+                } else {
+                    $yaadpay_args['EZ.vat'] = 17; 
+                }
                 return $yaadpay_args;
             }
         } else {
@@ -1426,8 +1435,15 @@ final class WC_Gateway_Yaadpay extends WC_Payment_Gateway
                         return $yaadpay_args;
                     }
                     if($yaadpay_args['PageLang'] == 'HEB') {
-                        $yaadpay_args['EZ.vat'] = 17;
-                         return $yaadpay_args;
+                        $timezone = wp_timezone(); 
+                        $current_date = new DateTime('now', $timezone);
+                        $change_date = new DateTime('2025-01-01', $timezone);
+                        if ($current_date >= $change_date) {
+                            $yaadpay_args['EZ.vat'] = 18; 
+                        } else {
+                            $yaadpay_args['EZ.vat'] = 17; 
+                        }
+                        return $yaadpay_args;
                     }
                 }
             } else {
@@ -2566,48 +2582,73 @@ function yaad_break_out_of_frames()
     }
 }
 
-
-
-add_action('wp_ajax_yaadpay_view_log',  'yaadpay_view_log_callback');
+// View log
+add_action('wp_ajax_yaadpay_view_log', 'yaadpay_view_log_callback');
 
 function yaadpay_view_log_callback()
 {
+    // Check user capability
+    if (!current_user_can('manage_options')) {
+        wp_die(__('Unauthorized user', 'textdomain'));
+    }
+
+    // Verify nonce
+    if (!check_ajax_referer('yaadpay_logs_nonce', 'security', false)) {
+        wp_die(__('Invalid request', 'textdomain'));
+    }
+
     $logs_base_dir = WP_CONTENT_DIR . '/uploads/wc-logs/';
     if (is_multisite()) {
         $logs_base_dir = WP_CONTENT_DIR . '/uploads/sites/' . get_current_blog_id() . '/wc-logs/';
     }
-    $logs          = glob( $logs_base_dir . 'yaad-sarig-payment-gateway-for-wc*.log');
+
+    $logs = glob($logs_base_dir . 'yaad-sarig-payment-gateway-for-wc*.log');
     $data = '';
-    if (empty($logs) == false) {
-        foreach($logs as $log) {
+    if (!empty($logs)) {
+        foreach ($logs as $log) {
             $handle = fopen($log, "r");
             if ($handle) {
                 while (($line = fgets($handle)) !== false) {
-                    $data 	.=	$line . '<br>';
+                    $data .= htmlspecialchars($line) . '<br>'; // Escape output
                 }
             }
             fclose($handle);
         }
     }
-    die($data);
+
+    wp_send_json_success($data); // Send JSON response
+    wp_die();
 }
 
-add_action('wp_ajax_yaadpay_delete_log',  'yaadpay_delete_log_callback');
-
+// Delete log
+add_action('wp_ajax_yaadpay_delete_log', 'yaadpay_delete_log_callback');
 
 function yaadpay_delete_log_callback()
 {
+    // Check user capability
+    if (!current_user_can('manage_options')) {
+        wp_die(__('Unauthorized user', 'textdomain'));
+    }
+
+    // Verify nonce
+    if (!check_ajax_referer('yaadpay_logs_nonce', 'security', false)) {
+        wp_die(__('Invalid request', 'textdomain'));
+    }
+
     $logs_base_dir = WP_CONTENT_DIR . '/uploads/wc-logs/';
     if (is_multisite()) {
         $logs_base_dir = WP_CONTENT_DIR . '/uploads/sites/' . get_current_blog_id() . '/wc-logs/';
     }
-    $logs          = glob($logs_base_dir . 'yaad-sarig-payment-gateway-for-wc*.log');
-    if (empty($logs) == false) {
-        foreach($logs as $log) {
+
+    $logs = glob($logs_base_dir . 'yaad-sarig-payment-gateway-for-wc*.log');
+    if (!empty($logs)) {
+        foreach ($logs as $log) {
             unlink($log);
         }
     }
-    die();
+
+    wp_send_json_success(__('Logs deleted successfully', 'textdomain')); // Send success message
+    wp_die();
 }
 
 

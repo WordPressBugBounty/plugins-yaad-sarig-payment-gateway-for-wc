@@ -21,19 +21,31 @@ jQuery(document).ready(function () {
 function view_log() {
   var data = {
     action: "yaadpay_view_log",
+    security: my_plugin_vars.nonce,
   };
-  jQuery.post(ajaxurl, data, function (response) {
+
+  jQuery.post(my_plugin_vars.ajax_url, data, function (response) {
     var logDisplay = document.getElementById("log-display");
-    logDisplay.innerHTML = response;
+    if (response.success) {
+      logDisplay.innerHTML = response.data;
+    } else {
+      logDisplay.innerHTML = "Error: " + response.data;
+    }
   });
 }
 function delete_log() {
   var data = {
     action: "yaadpay_delete_log",
+    security: my_plugin_vars.nonce,
   };
-  jQuery.post(ajaxurl, data, function (response) {
+
+  jQuery.post(my_plugin_vars.ajax_url, data, function (response) {
     var logDisplay = document.getElementById("log-display");
-    logDisplay.innerHTML = "";
+    if (response.success) {
+      logDisplay.innerHTML = "Logs deleted successfully.";
+    } else {
+      logDisplay.innerHTML = "Error: " + response.data;
+    }
   });
 }
 
