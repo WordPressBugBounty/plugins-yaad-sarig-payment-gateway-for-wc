@@ -94,18 +94,21 @@ jQuery(document).ready(function () {
     rows[4].style.display = "none";
     rows[5].style.display = "none";
     rows[6].style.display = "none";
+    rows[7].style.display = "none";
   } else if (invoiceOptions.value == "yaad_invoice") {
     rows[2].style.display = "";
-    rows[3].style.display = "none";
+    rows[3].style.display = "";
     rows[4].style.display = "none";
     rows[5].style.display = "none";
     rows[6].style.display = "none";
+    rows[7].style.display = "none";
   } else if (invoiceOptions.value == "hyp_invoice") {
     rows[2].style.display = "";
     rows[3].style.display = "";
     rows[4].style.display = "";
     rows[5].style.display = "";
     rows[6].style.display = "";
+    rows[7].style.display = "";
   }
 
   document
@@ -118,13 +121,15 @@ jQuery(document).ready(function () {
         rows[4].style.display = "none";
         rows[5].style.display = "none";
         rows[6].style.display = "none";
+        rows[7].style.display = "none";
       } else if (invoiceOptions.value == "yaad_invoice") {
         dataInInvoice.checked = true;
         rows[2].style.display = "";
-        rows[3].style.display = "none";
+        rows[3].style.display = "";
         rows[4].style.display = "none";
         rows[5].style.display = "none";
         rows[6].style.display = "none";
+        rows[7].style.display = "none";
       } else if (invoiceOptions.value == "hyp_invoice") {
         dataInInvoice.checked = true;
         rows[2].style.display = "";
@@ -132,8 +137,11 @@ jQuery(document).ready(function () {
         rows[4].style.display = "";
         rows[5].style.display = "";
         rows[6].style.display = "";
+        rows[7].style.display = "";
       }
     });
+
+  rows[8].style.display = "none";
 
   const iframe = document.getElementById("woocommerce_yaadpay_yaad_iframe");
   if (!iframe.checked) {

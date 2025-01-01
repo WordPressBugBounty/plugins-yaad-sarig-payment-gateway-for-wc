@@ -6,7 +6,7 @@ if (!defined('ABSPATH')) exit; // Exit if accessed directly
  * Yaad Sarig Payment Gateway
  * Plugin Name: Yaad Sarig Payment Gateway For WC
  * Description: Allows receiving payments via Yaad Sarig ( YaadPay )
- * Version: 2.2.5
+ * Version: 2.2.6
  * Author: YAAD-PAY & 10Bit
  * Author URI: https://yaadpay.yaad.net/developers/article.php?id=48
  * Text Domain: yaad-sarig-payment-gateway-for-wc
@@ -90,3 +90,9 @@ function yaadpay_get_version()
 {
 	return get_plugin_data(__FILE__)['Version'];
 }
+
+add_action('before_woocommerce_init', function() {
+    if ( class_exists( \Automattic\WooCommerce\Utilities\FeaturesUtil::class ) ) {
+        \Automattic\WooCommerce\Utilities\FeaturesUtil::declare_compatibility( 'custom_order_tables', __FILE__, true );
+    }
+});

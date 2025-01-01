@@ -4,7 +4,7 @@ Donate link:
 Tags: wc, payments
 Requires at least: 6.0
 Tested up to: 6.7
-Stable tag: 2.2.5
+Stable tag: 2.2.6
 Requires PHP: 5.4
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
@@ -74,5 +74,6 @@ This section describes how to install the plugin and get it working.
 2.2.3- Updated new WC version 9
 2.2.4- fix vat issue and change templates link
 2.2.5 - update VAT for 2025 MAAM updating + fix logs issue
+2.2.6 - add hpos support + remote log fix
 == Upgrade Notice ==
 

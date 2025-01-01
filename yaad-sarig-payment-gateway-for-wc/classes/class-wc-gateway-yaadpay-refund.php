@@ -30,7 +30,7 @@ class WC_Gateway_YaadPay_Refund
 
     function tb_save_refund_manager_key_callback()
     {
-        WC_Gateway_Yaadpay::log('[REFUND]: ' . __METHOD__ . ' start');
+        WC_Gateway_Yaadpay::log('[REFUND]: ' . __METHOD__ . ' start', array('source' => 'yaad-sarig-payment-gateway-for-wc'));
         $manager_key = isset($_POST['manager_key']) ? sanitize_textarea_field($_POST['manager_key']) : 'no-key';
         WC()->session->set('manager_key', $manager_key);
         wp_send_json_success();
