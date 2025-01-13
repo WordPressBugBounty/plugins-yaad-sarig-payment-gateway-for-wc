@@ -12,7 +12,8 @@ final class  WC_Gateway_YaadPay_Metabox {
 		add_action ( 'wp_ajax_yaadpay_get_token_data', array( $this, 'yaadpay_get_token_data_callback' ) );
 		add_action ( 'wp_ajax_yaadpay_update_subscription_parent', array( $this, 'yaadpay_update_subscription_parent_callback' ) );
 
-		$hpos_status = WC_Gateway_Yaadpay::get_hpos_status();
+		$hpos_status = "yes";
+		//$hpos_status = WC_Gateway_Yaadpay::get_hpos_status();
 		//WC_Gateway_Yaadpay::log('HPOS status: ' . $hpos_status);
 		if ($hpos_status === 'no') {
 			add_action ( 'add_meta_boxes', array( $this, 'yaadpay_add_meta_box' ) );
@@ -339,7 +340,7 @@ final class  WC_Gateway_YaadPay_Metabox {
 		if ( empty( $YaadpayTK ) == false ) { // J5
 			$this->build_token_payment_form2 ( $order, $YaadpayTK );
 		} else if ($YaadPostpone) { // Postpone
-			$this->build_commit_trans_form( $order );
+			$this->build_commit_trans_form2( $order );
 		} else { // Direct
 			$this->build_missing_token_form2( $order);
 		}
@@ -641,7 +642,82 @@ final class  WC_Gateway_YaadPay_Metabox {
 		echo '</div>';
 	}
 
+	private function build_commit_trans_form2 ($post_or_order_object) {
+		$order = ( $post_or_order_object instanceof WP_Post ) ? wc_get_order( $post_or_order_object->ID ) : $post_or_order_object;
 
+		//$transaction_id = get_post_meta ($order->get_id (), '_yaadpay_id', true);
+		//$transaction_amount = get_post_meta ($order->get_id (), '_yaadpay_amount', true);
+
+		$transaction_id;
+		$transaction_amount;
+
+		$screen = class_exists( '\Automattic\WooCommerce\Internal\DataStores\Orders\CustomOrdersTableController' ) && wc_get_container()->get( CustomOrdersTableController::class )->custom_orders_table_usage_is_enabled()
+		? wc_get_page_screen_id( 'shop-order' )
+		: 'shop_order';
+
+		if ($screen == 'woocommerce_page_wc-orders') {
+			$transaction_id = $order->get_meta('_yaadpay_id', true);
+			$transaction_amount = $order->get_meta('_yaadpay_amount', true);
+		} else {
+			$transaction_id = get_post_meta ($order->get_id (), '_yaadpay_id', true);
+			$transaction_amount = get_post_meta ($order->get_id (), '_yaadpay_amount', true);
+		}
+
+		echo "<script>
+				function yaadpay_commit_trans(button) {
+					button.disabled = true;
+
+					var data = {
+						'action': 'yaadpay_commit_trans',
+						'orderId':'" . $order->get_id () . "',
+						'transaction_id':'" . $transaction_id . "',
+
+					};
+					jQuery.post(ajaxurl, data, function(response) {
+						if (response=='success'){
+							location.reload();
+						}
+						else{
+							alert(response);
+							button.disabled = false;
+						}
+					});
+
+			};</script>";
+
+		echo '<div>';
+		_e ( 'Transaction Type :','yaad-sarig-payment-gateway-for-wc' );
+		_e ( 'Postpone', 'yaad-sarig-payment-gateway-for-wc' );
+		echo '</div>';
+
+		echo '<div>';
+		echo '<label for="yaadpay_token">';
+		_e ( 'Transaction Id :', 'yaad-sarig-payment-gateway-for-wc' );
+		echo '</label> ';
+		echo esc_attr ( $transaction_id );
+		echo '</div>';
+
+		echo '<div>';
+		echo '<label for="yaadpay_amount">';
+		_e ( 'Amount :', 'yaad-sarig-payment-gateway-for-wc' );
+		echo '</label> ';
+		echo esc_attr ( $transaction_amount );
+		echo '</div>';
+
+		echo '<div>';
+		echo '<label for="yaad_helper"><strong>';
+		_e ( "Do not change the order's total amount", "yaad-sarig-payment-gateway-for-wc" );
+		echo '</strong></label> ';
+		echo '</div>';
+
+		if ( $order->get_status () != "on-hold" ) {
+			return;
+		}
+		echo '<div>';
+		$pay_btn_str = __("Charge","yaad-sarig-payment-gateway-for-wc");
+		echo '<button type="button" class="button" onclick="yaadpay_commit_trans(this);">'. esc_html($pay_btn_str) .'</button>';
+		echo '</div>';
+	}
 
 	private function build_missing_token_form( tb_wc_order $order ) {
 		$arg=get_post_meta($order->get_id(),'yaad_credit_card_payment',true);

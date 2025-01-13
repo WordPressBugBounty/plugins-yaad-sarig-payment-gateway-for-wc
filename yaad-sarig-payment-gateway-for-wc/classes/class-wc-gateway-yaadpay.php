@@ -293,10 +293,10 @@ final class WC_Gateway_Yaadpay extends WC_Payment_Gateway
         add_filter('wcml_gateway_text_keys_to_translate', [$this, 'yaad_wcml_translated_keys']);
     }
 
-    public static function get_hpos_status() {
-        $gateway = WC()->payment_gateways()->get_available_payment_gateways()['yaadpay'];
-        return $gateway ? $gateway->hpos : null;
-    }
+    // public static function get_hpos_status() {
+    //     $gateway = WC()->payment_gateways()->get_available_payment_gateways()['yaadpay'];
+    //     return $gateway ? $gateway->hpos : null;
+    // }
 
     public function is_trial($order)
     {
@@ -587,13 +587,24 @@ final class WC_Gateway_Yaadpay extends WC_Payment_Gateway
                 case '800': // postpone
                     $this->validate_signature($order);
                     $this->process_successful_order($order, 'Yaadpay payment -  Postpone');
-                    update_post_meta($order->get_id(), '_yaad_postpone', 'True');
+					 if ($this->hpos == 'no') {
+                        update_post_meta($order->get_id(), '_yaad_postpone', 'True');
+                    } else {
+                        $order->get_WC_order()->update_meta_data('_yaad_postpone', 'True');
+                        $order->get_WC_order()->save();
+                    }
 
                     if (isset($_GET['Id']) && isset($_GET['Amount'])) {
                         $yaadpay_id = sanitize_text_field($_GET['Id']);
                         $yaadpay_amount = sanitize_text_field($_GET['Amount']);  
-                        update_post_meta($order->get_id(), '_yaadpay_id', $yaadpay_id);
-                        update_post_meta($order->get_id(), '_yaadpay_amount', $yaadpay_amount);
+						if ($this->hpos == 'no') {
+                            update_post_meta($order->get_id(), '_yaadpay_id', $yaadpay_id);
+                            update_post_meta($order->get_id(), '_yaadpay_amount', $yaadpay_amount);
+                        } else {
+                            $order->get_WC_order()->update_meta_data('_yaadpay_id', $yaadpay_id);
+                            $order->get_WC_order()->update_meta_data('_yaadpay_amount', $yaadpay_amount);
+                            $order->get_WC_order()->save();
+                        }
                     } 
                     $order->update_status('on-hold');
                     wp_redirect($this->get_return_url($order));
@@ -1938,8 +1949,14 @@ final class WC_Gateway_Yaadpay extends WC_Payment_Gateway
         $result_array = array();
         parse_str($resp, $result_array);
         self::log("[INFO]: ConfirmationCode: " . print_r($result_array, true));
-        update_post_meta($order->get_id(), self::YAADPAY_TOKEN_PAYMENT, iconv('cp1255', 'UTF-8', $resp));
-
+		
+      	if ($this->hpos == 'no') {
+            update_post_meta($order->get_id(), self::YAADPAY_TOKEN_PAYMENT, iconv('cp1255', 'UTF-8', $resp));
+        } else {
+            $order->get_WC_order()->update_meta_data(self::YAADPAY_TOKEN_PAYMENT, iconv('cp1255', 'UTF-8', $resp));
+            $order->get_WC_order()->save();
+        }
+		
         if ($this->is_token_payment_error($result_array)) {
             $order->add_order_note(__('Yaadpay payment failed, ConfirmationCode: ', 'yaad-sarig-payment-gateway-for-wc') . $result_array['CCode']);
             return new WP_Error('Token payment failed', __('Token payment failed. Confirmation Code: ', 'yaad-sarig-payment-gateway-for-wc') . $result_array['CCode']);
