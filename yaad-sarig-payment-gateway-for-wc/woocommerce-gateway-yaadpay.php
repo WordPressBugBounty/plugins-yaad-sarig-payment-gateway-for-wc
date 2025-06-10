@@ -6,7 +6,7 @@ if (!defined('ABSPATH')) exit; // Exit if accessed directly
  * Yaad Sarig Payment Gateway
  * Plugin Name: Yaad Sarig Payment Gateway For WC
  * Description: Allows receiving payments via Yaad Sarig ( YaadPay )
- * Version: 2.2.7
+ * Version: 2.2.8
  * Author: YAAD-PAY & 10Bit
  * Author URI: https://yaadpay.yaad.net/developers/article.php?id=48
  * Text Domain: yaad-sarig-payment-gateway-for-wc
