@@ -271,6 +271,7 @@ final class WC_Gateway_Yaadpay extends WC_Payment_Gateway
         add_action('woocommerce_update_options_payment_gateways_' . $this->id, array($this, 'process_admin_options'));
         // Payment listener/API hook
         add_action('woocommerce_api_wc_gateway_' . $this->id, array($this, 'yaadpay_callback_handler'));
+        add_action('woocommerce_api_wc_gateway_' . $this->id . '_webhook', array($this, 'yaadpay_webhook'));
         add_action('cancelled_subscription_' . $this->id, array($this, 'yaadpay_cancel_subscription'));
         if ($this->iframe) {
             add_action('woocommerce_thankyou', 'yaad_break_out_of_frames');
@@ -582,6 +583,75 @@ final class WC_Gateway_Yaadpay extends WC_Payment_Gateway
         return ($verify == $Sign);
     }
 
+    function yaadpay_webhook()
+    {
+        @ob_end_clean();
+
+        $sanitized_array = array();
+        foreach ($_GET as $key => $value) {
+            $sanitized_array[$key] = sanitize_text_field($value);
+        }
+
+        self::log("Webhook Result: " . print_r($sanitized_array, true));
+        self::log('yaad_payment_type: ' . $this->yaad_payment_type);
+
+        if (!empty($_GET)) {
+            $res = isset($_GET['CCode']) ? sanitize_text_field($_GET['CCode']) : '';
+            $order_id = isset($_GET['Order']) ? (int) sanitize_text_field($_GET['Order']) : 0;
+            $order = tb_wc_object::factory(tb_wc_object::ORDER, $order_id);
+            $is_a_subscription = $this->test_if_subscription($order_id);
+            if (($is_a_subscription) && ($res == '0')) { //} ||$res=='700' || $res=='800')){
+                $res = '1000';
+            }
+            self::log("res :" . $res);
+            $l4digits = '';
+            switch ($res) {
+                case '0':
+                    $this->validate_signature($order);
+                    $this->process_successful_order($order, 'Yaadpay payment completed');
+                    $order->payment_complete();
+                    break;
+                case '700': // j5
+                    $this->validate_signature($order);
+                    $l4digits = $this->process_successful_order($order, 'Yaadpay payment -  J5');
+                    $this->save_token_data($l4digits);
+                    $order->update_status('on-hold');
+                    break;
+                case '800': // postpone
+                    $this->validate_signature($order);
+                    $this->process_successful_order($order, 'Yaadpay payment -  Postpone');
+                    update_post_meta($order->get_id(), '_yaad_postpone', 'True');
+
+                    if (isset($_GET['Id']) && isset($_GET['Amount'])) {
+                        $yaadpay_id = sanitize_text_field($_GET['Id']);
+                        $yaadpay_amount = sanitize_text_field($_GET['Amount']);  
+                        update_post_meta($order->get_id(), '_yaadpay_id', $yaadpay_id);
+                        update_post_meta($order->get_id(), '_yaadpay_amount', $yaadpay_amount);
+                    } 
+                    $order->update_status('on-hold');
+                    break;
+                case '1000': // Subscription
+                    $this->validate_signature($order);
+                    $l4digits = $this->process_successful_order($order, 'Yaadpay payment -  subscription');
+                    $this->save_token_data($l4digits);
+                    $order->payment_complete();
+                    $this->update_subscription_parent_order($order->get_id());
+                    break;
+                default:
+                    $this->process_error();
+                // No action
+            }
+
+            status_header(200);
+            echo 'payment success';
+            exit;
+        } else {
+            status_header(400);
+            echo 'payment failure';
+            exit;
+        }
+    }
+
     function yaadpay_callback_handler()
     {
 
@@ -804,7 +874,7 @@ final class WC_Gateway_Yaadpay extends WC_Payment_Gateway
             'block_items_validation' => array(
                 'title' => __('Block items validation', 'yaad-sarig-payment-gateway-for-wc'),
                 'type' => 'checkbox',
-                'name' => 'sahar',
+                'name' => 'block_items_validation',
                 'default' => 'no',
                 'description' => __('Support block items validation', 'yaad-sarig-payment-gateway-for-wc'),
                 'desc_tip' => __('Support block items validation', 'yaad-sarig-payment-gateway-for-wc'),
@@ -1141,6 +1211,7 @@ final class WC_Gateway_Yaadpay extends WC_Payment_Gateway
             $yaadpay_args['UserId'] = '000000000';
         }
         $yaadpay_args['action'] = 'zikoyAPI';
+        $yaadpay_args['source'] = 'Woo';
         $yaadpay_args['SendHesh'] = 'True';
         $transaction_id = $this->get_yaadpay_transaction_id_for_refund($yaadpay_args,$order_id);
         $yaadpay_args['TransId']  = $transaction_id;
@@ -2622,6 +2693,8 @@ final class WC_Gateway_Yaadpay extends WC_Payment_Gateway
         if ($this->block_items_validation == 'yes') {
              $yaadpay_args['blockItemValidation'] = 'True';
         }
+
+        $yaadpay_args['source'] = 'Woo';
 
         return $yaadpay_args;
     }

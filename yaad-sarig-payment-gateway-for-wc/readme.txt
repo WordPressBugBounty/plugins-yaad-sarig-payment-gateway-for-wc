@@ -3,8 +3,8 @@ Contributors: Yaad Sarig, 10bit
 Donate link: 
 Tags: wc, payments
 Requires at least: 6.0
-Tested up to: 6.8
-Stable tag: 2.2.8
+Tested up to: 6.9
+Stable tag: 2.2.10
 Requires PHP: 5.4
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
@@ -78,5 +78,7 @@ This section describes how to install the plugin and get it working.
 2.2.7 - J5 postpone + HPOS fix
 2.2.8 - fix HPOS, add blockItemValidation
 2.2.9 - Woocommerce 10
+2.2.10 - Tested up to: 6.9
+2.2.11 - Plugin maintenance
 == Upgrade Notice ==
 

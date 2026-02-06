@@ -6,7 +6,7 @@ if (!defined('ABSPATH')) exit; // Exit if accessed directly
  * Yaad Sarig Payment Gateway
  * Plugin Name: Yaad Sarig Payment Gateway For WC
  * Description: Allows receiving payments via Yaad Sarig ( YaadPay )
- * Version: 2.2.9
+ * Version: 2.2.11
  * Author: YAAD-PAY & 10Bit
  * Author URI: https://yaadpay.yaad.net/developers/article.php?id=48
  * Text Domain: yaad-sarig-payment-gateway-for-wc
@@ -73,9 +73,9 @@ function woocommerce_yaadpay_init()
 	};
 	load_plugin_textdomain('yaad-sarig-payment-gateway-for-wc', false, dirname(plugin_basename(__FILE__)) . '/languages/');
 	define('YAADPAY_PLUGIN_DIR', plugins_url(basename(plugin_dir_path(__FILE__)), basename(__FILE__)) . '/');
-	define('YAAD_3DS_URL', 'https://icom.yaad.net/cgi-bin/yaadpay/yaadpay3ds.pl');
-	define('YAAD_GATEWAY_URL', 'https://icom.yaad.net/cgi-bin/yaadpay/yaadpay3ds.pl');
-	define('YAAD_LEUMI_GATEWAY_URL', 'https://icom.yaad.net/cgi-bin/yaadpay/yaadpay3ds.pl');
+	define('YAAD_3DS_URL', 'https://pay.hyp.co.il/p3/');
+	define('YAAD_GATEWAY_URL', 'https://pay.hyp.co.il/p3/');
+	define('YAAD_LEUMI_GATEWAY_URL', 'https://pay.hyp.co.il/p3/');
 	//new WC_Gateway_Yaadpay();
 	include 'classes/class-wc-gateway-yaadpay.php';
 	include 'classes/class-yaadpay-meta-box.php';
