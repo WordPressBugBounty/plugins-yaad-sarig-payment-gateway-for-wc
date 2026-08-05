@@ -52,5 +52,9 @@ namespace tb_infra_1_0_11{
 	require_once(plugin_dir_path(__FILE__) . 'class_tb_wc_order_v10.php');
 	require_once(plugin_dir_path(__FILE__) . 'class_tb_wc_product_v10.php');
 	require_once(plugin_dir_path(__FILE__) . 'class_tb_wc_item_v10.php');
+    //Woocommerce 11.X
+	require_once(plugin_dir_path(__FILE__) . 'class_tb_wc_order_v11.php');
+	require_once(plugin_dir_path(__FILE__) . 'class_tb_wc_product_v11.php');
+	require_once(plugin_dir_path(__FILE__) . 'class_tb_wc_item_v11.php');
 }
 
