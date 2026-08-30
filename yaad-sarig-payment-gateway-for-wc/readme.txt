@@ -3,8 +3,8 @@ Contributors: Yaad Sarig, 10bit
 Donate link: 
 Tags: wc, payments
 Requires at least: 6.0
-Tested up to: 7.0.2
-Stable tag: 2.2.12
+Tested up to: 7.1
+Stable tag: 2.2.13
 Requires PHP: 5.4
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
@@ -81,6 +81,7 @@ This section describes how to install the plugin and get it working.
 2.2.10 - Tested up to: 6.9
 2.2.11 - Plugin maintenance
 2.2.12 - Woocommerce 11
+2.2.13 - Plugin security fixed + Tested up to: 7.1
 
 == Upgrade Notice ==
 

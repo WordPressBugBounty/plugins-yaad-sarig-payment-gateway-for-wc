@@ -15,7 +15,8 @@ function tb_do_refund() {
     var $input = jQuery(this);
     var data = {
         'action': 'tb_save_refund_manager_key',
-        'manager_key': $input.val()
+        'manager_key': $input.val(),
+        'security': yaadpay.refund_nonce
     };
 
     var $container = jQuery('#woocommerce-order-items');

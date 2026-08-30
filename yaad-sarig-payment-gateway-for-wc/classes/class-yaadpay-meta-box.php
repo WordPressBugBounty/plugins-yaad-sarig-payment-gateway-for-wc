@@ -156,6 +156,12 @@ final class  WC_Gateway_YaadPay_Metabox {
 	}
 
 	function yaadpay_get_token_data_callback () {
+		if (!current_user_can('manage_woocommerce')) {
+			wp_send_json_error('Unauthorized', 403);
+		}
+
+		check_ajax_referer('yaadpay_get_token_data_nonce', 'security');
+
 		WC_Gateway_Yaadpay::log('[INFO]: yaadpay_get_token_data_callback', array('source' => 'yaad-sarig-payment-gateway-for-wc'));
 		if (isset($_POST['order_id']) && isset($_POST['transaction_id'])) {
 		$order_id       = sanitize_text_field($_POST['order_id']);
@@ -173,6 +179,12 @@ final class  WC_Gateway_YaadPay_Metabox {
 	}
 
 	function yaadpay_update_subscription_parent_callback(){
+		if (!current_user_can('manage_woocommerce')) {
+			wp_send_json_error('Unauthorized', 403);
+		}
+
+		check_ajax_referer('yaadpay_update_subscription_parent_nonce', 'security');
+
 		WC_Gateway_Yaadpay::log('[INFO]: yaadpay_update_subscription_parent_callback', array('source' => 'yaad-sarig-payment-gateway-for-wc'));
 		if ( isset( $_POST['order_id'] ) ) {
 			$order_id       = sanitize_text_field($_POST['order_id']);
@@ -189,7 +201,11 @@ final class  WC_Gateway_YaadPay_Metabox {
 	}
 
 	function yaadpay_token_pay_callback () {
-		WC_Gateway_Yaadpay::log('[INFO]: ' . __METHOD__, array('source' => 'yaad-sarig-payment-gateway-for-wc'));
+		if (!current_user_can('manage_woocommerce')) {
+        	wp_send_json_error('Unauthorized', 403);
+		}
+
+		check_ajax_referer('yaadpay_token_pay_nonce', 'security');
 
 		// Sanitize and validate the input data
 		$orderId = isset( $_POST['orderId'] ) ? intval( $_POST['orderId'] ) : '';
@@ -249,7 +265,12 @@ final class  WC_Gateway_YaadPay_Metabox {
 	}
 
 	function yaadpay_commit_trans_callback () {
-		WC_Gateway_Yaadpay::log('[INFO]: ' . __METHOD__, array('source' => 'yaad-sarig-payment-gateway-for-wc'));
+		if (!current_user_can('manage_woocommerce')) {
+			wp_send_json_error('Unauthorized', 403);
+		}
+
+		check_ajax_referer('yaadpay_commit_trans_nonce', 'security');
+
 		$orderId = isset( $_POST['orderId'] ) ? (int)sanitize_text_field( $_POST['orderId'] ) : '';
 
 		$gateways           = WC_Payment_Gateways::instance ();
@@ -390,7 +411,8 @@ final class  WC_Gateway_YaadPay_Metabox {
 						'YaadpayTK':      '" . $YaadpayTK . "',
 						'expmonth':       '" . $expmonth . "',
 						'expyear':        '" . $expyear . "',
-						'transaction_id': '" . $transaction_id . "'
+						'transaction_id': '" . $transaction_id . "',
+						'security':       '" . wp_create_nonce('yaadpay_token_pay_nonce') . "'
 					};
 					jQuery.post(ajaxurl, data, function(response) {
 						if (response=='success'){
@@ -509,7 +531,9 @@ final class  WC_Gateway_YaadPay_Metabox {
 						'YaadpayTK':      '" . $YaadpayTK . "',
 						'expmonth':       '" . $expmonth . "',
 						'expyear':        '" . $expyear . "',
-						'transaction_id': '" . $transaction_id . "'
+						'transaction_id': '" . $transaction_id . "',
+						'security':       '" . wp_create_nonce('yaadpay_token_pay_nonce') . "'
+
 					};
 					jQuery.post(ajaxurl, data, function(response) {
 						if (response=='success'){
@@ -594,7 +618,7 @@ final class  WC_Gateway_YaadPay_Metabox {
 						'action': 'yaadpay_commit_trans',
 						'orderId':'" . $order->get_id () . "',
 						'transaction_id':'" . $transaction_id . "',
-
+    					'security': '" . wp_create_nonce('yaadpay_commit_trans_nonce') . "'
 					};
 					jQuery.post(ajaxurl, data, function(response) {
 						if (response=='success'){
@@ -671,7 +695,7 @@ final class  WC_Gateway_YaadPay_Metabox {
 						'action': 'yaadpay_commit_trans',
 						'orderId':'" . $order->get_id () . "',
 						'transaction_id':'" . $transaction_id . "',
-
+						'security': '" . wp_create_nonce('yaadpay_commit_trans_nonce') . "'
 					};
 					jQuery.post(ajaxurl, data, function(response) {
 						if (response=='success'){
@@ -757,7 +781,8 @@ final class  WC_Gateway_YaadPay_Metabox {
 		        var data = {
             		"action" : "yaadpay_get_token_data",
             		"transaction_id" : "'.$trans_id.'",
-            		"order_id": "'.$order->get_id().'"
+            		"order_id": "'.$order->get_id().'",
+					"security": "'.wp_create_nonce('yaadpay_get_token_data_nonce').'"
         		};
 				jQuery.post(ajaxurl, data, function(response) {
 					console.log(response);
@@ -824,7 +849,8 @@ final class  WC_Gateway_YaadPay_Metabox {
 		        var data = {
             		"action" : "yaadpay_get_token_data",
             		"transaction_id" : "'.$trans_id.'",
-            		"order_id": "'.$order->get_id().'"
+            		"order_id": "'.$order->get_id().'",
+					"security": "'.wp_create_nonce('yaadpay_get_token_data_nonce').'"
         		};
 				jQuery.post(ajaxurl, data, function(response) {
 					console.log(response);
@@ -848,7 +874,8 @@ final class  WC_Gateway_YaadPay_Metabox {
 			function yaadpay_update_subscription_parent_order(p1, p2) {
 		        var data = {
             		"action" : "yaadpay_update_subscription_parent",
-            		"order_id": "'.$order->get_id().'"
+            		"order_id": "'.$order->get_id().'",
+					"security": "'.wp_create_nonce('yaadpay_update_subscription_parent_nonce').'"
         		};
 				jQuery.post(ajaxurl, data, function(response) {
 					console.log(response);

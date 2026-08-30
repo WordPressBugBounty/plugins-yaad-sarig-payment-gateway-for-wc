@@ -587,12 +587,18 @@ final class WC_Gateway_Yaadpay extends WC_Payment_Gateway
     {
         @ob_end_clean();
 
+        if (isset($_GET['healthcheck'])) {
+			status_header(200);
+			echo 'OK';
+			exit;
+		}
+
         $sanitized_array = array();
         foreach ($_GET as $key => $value) {
             $sanitized_array[$key] = sanitize_text_field($value);
         }
 
-        self::log("Webhook Result: " . print_r($sanitized_array, true));
+        #self::log("Webhook Result: " . print_r($sanitized_array, true));
         self::log('yaad_payment_type: ' . $this->yaad_payment_type);
 
         if (!empty($_GET)) {
@@ -661,7 +667,7 @@ final class WC_Gateway_Yaadpay extends WC_Payment_Gateway
         foreach ($_GET as $key => $value) {
             $sanitized_array[$key] = sanitize_text_field($value);
         }
-        self::log("Result: " . print_r($sanitized_array, true));
+        #self::log("Result: " . print_r($sanitized_array, true));
         self::log('yaad_payment_type: ' . $this->yaad_payment_type);
 
 
@@ -1064,7 +1070,7 @@ final class WC_Gateway_Yaadpay extends WC_Payment_Gateway
         $order = tb_wc_object::factory(tb_wc_object::ORDER, $order_id);
 
         $user_token_data = $this->get_user_meta_data($order->get_user_id());
-        self::log("user saved cc data :" . print_r($user_token_data, true));
+        #self::log("user saved cc data :" . print_r($user_token_data, true));
 
         $is_trial = $this->is_trial($order);
         if ($is_trial) {
@@ -1365,7 +1371,7 @@ final class WC_Gateway_Yaadpay extends WC_Payment_Gateway
         if (isset($_POST['credit_card_type'])) {
             $params .= '&credit_card_type=' . sanitize_text_field($_POST['credit_card_type']);
         }
-        self::log('[INFO]: process_payment params:' . print_r($params, true));
+        #self::log('[INFO]: process_payment params:' . print_r($params, true));
 
         return array('result' => 'success', 'redirect' => $order->get_checkout_payment_url(true) . $params);
     }
@@ -2008,7 +2014,7 @@ final class WC_Gateway_Yaadpay extends WC_Payment_Gateway
 
         $result = $this->process_subscription_payment($order, $amount_to_charge);
 
-        self::log("[INFO]: result  " . print_r($result, true));
+        #self::log("[INFO]: result  " . print_r($result, true));
 
         if (is_wp_error($result)) {
             $subscription = reset(wcs_get_subscriptions_for_renewal_order($order->get_id()));
@@ -2034,7 +2040,7 @@ final class WC_Gateway_Yaadpay extends WC_Payment_Gateway
 
         $result_array = array();
         parse_str($resp, $result_array);
-        self::log("[INFO]: ConfirmationCode: " . print_r($result_array, true));
+        #self::log("[INFO]: ConfirmationCode: " . print_r($result_array, true));
 
         $order->add_order_note(sprintf('Subscription Renewal %s: CCode=%s, Id=%s', ($this->is_token_payment_error($result_array) ? 'Failed' : 'OK'), $result_array['CCode'], $result_array['Id']));
 
@@ -2198,7 +2204,7 @@ final class WC_Gateway_Yaadpay extends WC_Payment_Gateway
 
             $token_result = array();
             parse_str($result['body'], $token_result);
-            self::log('[DEBUG] Token response: ' . print_r($token_result, true));
+            #self::log('[DEBUG] Token response: ' . print_r($token_result, true));
             if ((int) $token_result['CCode'] == 0) {
                 if (WC_Gateway_Yaadpay::is_hpos()) {
                     $order_wc->update_meta_data(self::YAADPAY_TOKEN, $token_result['Token']);
@@ -2611,9 +2617,8 @@ final class WC_Gateway_Yaadpay extends WC_Payment_Gateway
     public function collect_yaad_args($order, $is_trial)
     {
 
-        self::log('[INFO]' . __FUNCTION__ . ': ' . print_r($order->get_WC_order(), true));
-
-        self::log('[INFO]: order fees: ' . print_r($order->get_fees(), true));
+        #self::log('[INFO]' . __FUNCTION__ . ': ' . print_r($order->get_WC_order(), true));
+        #self::log('[INFO]: order fees: ' . print_r($order->get_fees(), true));
 
         $total        = $is_trial ? '1' : $order->get_total();
 

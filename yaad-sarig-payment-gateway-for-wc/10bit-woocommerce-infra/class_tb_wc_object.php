@@ -53,6 +53,9 @@ namespace tb_infra_1_0_11{
 			public static function factory ( $which_object, $obj ) {
 				$wc_version = get_option ( 'woocommerce_version', null );
 				$wc_version = strstr ( $wc_version, '.', true );
+				if ($wc_version > 10) {
+					$wc_version = 10;
+				}
 				$class_name = 'tb_wc_' . $which_object . '_v' . $wc_version;
 				$class_name = __NAMESPACE__ . '\\' . $class_name;
 				if ( class_exists ( $class_name ) ) {

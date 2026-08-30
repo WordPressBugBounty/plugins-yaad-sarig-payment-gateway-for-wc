@@ -111,7 +111,7 @@ div#log-display {
 }
 
 #update_apple {
-	position: relative;
-	top: 1rem;
-	right: 19rem;
-  }
+  position: relative;
+  inset-inline-start: -20rem;
+  top: -1.3rem;
+}

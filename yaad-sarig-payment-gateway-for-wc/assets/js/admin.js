@@ -154,7 +154,7 @@ jQuery(document).ready(function () {
     jQuery("#display")
       .find("tr:eq(5)")
       .append(
-        "<button id='update_apple' title='update apple file' onclick='update_apple_file()'>update</button>"
+        "<td class='apple-update-col'><button type='button' id='update_apple' title='update apple file'>update</button></td>"
       );
     if (applePay.checked) {
       add_apple_file();

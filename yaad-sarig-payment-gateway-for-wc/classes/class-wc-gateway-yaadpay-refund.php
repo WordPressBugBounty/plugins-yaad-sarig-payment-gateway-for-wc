@@ -24,13 +24,19 @@ class WC_Gateway_YaadPay_Refund
         wp_register_script('refunds_js', plugin_dir_url(__DIR__) . 'assets/js/refunds.js', ['jquery'], yaadpay_get_version());
         wp_localize_script('refunds_js', 'yaadpay', array(
             'refunds_manager_password' => __('Manager Password:', 'yaad-sarig-payment-gateway-for-wc'),
+            'refund_nonce' => wp_create_nonce('yaadpay_refund_manager_nonce'),
         ));
         wp_enqueue_script('refunds_js');
     }
 
     function tb_save_refund_manager_key_callback()
     {
-        WC_Gateway_Yaadpay::log('[REFUND]: ' . __METHOD__ . ' start', array('source' => 'yaad-sarig-payment-gateway-for-wc'));
+        if (!current_user_can('manage_woocommerce')) {
+            wp_send_json_error('Unauthorized', 403);
+        }
+
+        check_ajax_referer('yaadpay_refund_manager_nonce', 'security');
+
         $manager_key = isset($_POST['manager_key']) ? sanitize_textarea_field($_POST['manager_key']) : 'no-key';
         WC()->session->set('manager_key', $manager_key);
         wp_send_json_success();
