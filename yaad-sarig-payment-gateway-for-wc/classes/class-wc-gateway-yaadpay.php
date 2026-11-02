@@ -198,6 +198,7 @@ final class WC_Gateway_Yaadpay extends WC_Payment_Gateway
     private $demo;
     private $iframe_height;
     private $iframe_width;
+    private $yaad_template;
 
     public $hpos;
 
@@ -272,7 +273,7 @@ final class WC_Gateway_Yaadpay extends WC_Payment_Gateway
         // Payment listener/API hook
         add_action('woocommerce_api_wc_gateway_' . $this->id, array($this, 'yaadpay_callback_handler'));
         add_action('woocommerce_api_wc_gateway_' . $this->id . '_webhook', array($this, 'yaadpay_webhook'));
-        add_action('cancelled_subscription_' . $this->id, array($this, 'yaadpay_cancel_subscription'));
+        //add_action('cancelled_subscription_' . $this->id, array($this, 'yaadpay_cancel_subscription'));
         if ($this->iframe) {
             add_action('woocommerce_thankyou', 'yaad_break_out_of_frames');
             add_action('woocommerce_before_checkout_form', 'yaad_break_out_of_frames');
@@ -285,7 +286,9 @@ final class WC_Gateway_Yaadpay extends WC_Payment_Gateway
         }
 
         add_action('woocommerce_checkout_order_processed', [$this, 'yaad_update_query_string']); // user  CREATE order
-        add_action('wp_head', 'add_apple_header');
+        if ($this->enabled === 'yes' && $this->iframe) {
+            add_action('wp_head', array($this, 'maybe_add_apple_header'));
+        }
         add_action('woocommerce_thankyou', [$this, 'yaad_update_query_string']); 				 // user finish order (for offline payments)
         add_action('woocommerce_after_pay_action', [$this, 'yaad_update_query_string']); 		 // user finish order (for offline payments)
 
@@ -295,16 +298,44 @@ final class WC_Gateway_Yaadpay extends WC_Payment_Gateway
         // WPML Support
         $this->yaad_wcml_get_current_language();
         add_filter('wcml_gateway_text_keys_to_translate', [$this, 'yaad_wcml_translated_keys']);
+
+        // admin_notices
+        add_action('admin_notices', array($this, 'missing_signature_notice'));
     }
 
-    // public static function get_hpos_status() {
-    //     $gateway = WC()->payment_gateways()->get_available_payment_gateways()['yaadpay'];
-    //     return $gateway ? $gateway->hpos : null;
-    // }
+    public function missing_signature_notice()
+    {
+        if ($this->enabled !== 'yes' || $this->has_signature() || !current_user_can('manage_woocommerce')) {
+            return;
+        }
+        echo '<div class="notice notice-error"><p>' .
+            esc_html__('Yaad Sarig: the authentication signature is not set. The gateway is disabled until it is configured.', 'yaad-sarig-payment-gateway-for-wc') .
+            '</p></div>';
+    }
+
+    private function has_signature()
+    {
+        return trim((string) $this->get_signature()) !== '';
+    }
+
+    public function is_available()
+    {
+        if (!$this->has_signature()) {
+            return false;
+        }
+        return parent::is_available();
+    }
+
+    public function maybe_add_apple_header()
+    {
+        if (function_exists('is_checkout_pay_page') && is_checkout_pay_page()) {
+            add_apple_header();
+        }
+    }
 
     public function is_trial($order)
     {
-        return $order->get_total() === 0 || (function_exists('wcs_is_subscription') ? wcs_is_subscription($order->get_id()) : false);
+        return (float) $order->get_total() === 0.0 || (function_exists('wcs_is_subscription') ? wcs_is_subscription($order->get_id()) : false);
     }
 
     public function yaad_update_query_string($order_id)
@@ -338,7 +369,7 @@ final class WC_Gateway_Yaadpay extends WC_Payment_Gateway
         $args_string  = chop($args_string, "&");
         $signature 	  = hash_hmac('sha256', $args_string, $secret);
         $args_string .= "&signature=$signature";
-        self::$logger->info('[INFO]: APISign - self signed args: ' . $args_string, array('source' => 'yaad-sarig-payment-gateway-for-wc'));
+        //self::$logger->info('[INFO]: APISign - self signed args: ' . $args_string, array('source' => 'yaad-sarig-payment-gateway-for-wc'));
         $order->get_WC_order()->update_meta_data(self::YAADPAY_QUERY_STRING, $args_string ?? '');
         $order->get_WC_order()->save();
     }
@@ -430,8 +461,13 @@ final class WC_Gateway_Yaadpay extends WC_Payment_Gateway
 
     private function update_parent_meta($new_order_id, $parent_order_id)
     {
-        $order = wc_get_order($order_id);  
+        $order = wc_get_order($new_order_id);  
         $parent_order = wc_get_order($parent_order_id);
+
+        if (!$order || !$parent_order) {
+            self::log('[ERROR]: update_parent_meta - order not found: ' . $new_order_id . ' / ' . $parent_order_id);
+            return;
+        }
 
         if (WC_Gateway_Yaadpay::is_hpos()) {
             $yaadpay_token = $order->get_meta(self::YAADPAY_TOKEN);
@@ -451,11 +487,11 @@ final class WC_Gateway_Yaadpay extends WC_Payment_Gateway
 
         self::$logger->info('[INFO]: parent order# : ' . $parent_order_id, array('source' => 'yaad-sarig-payment-gateway-for-wc'));
         self::$logger->info('[INFO]: payed order# : ' . $new_order_id, array('source' => 'yaad-sarig-payment-gateway-for-wc'));
-        self::$logger->info('[INFO]: yaad query data : ' . $renewal_yaad_credit_card_payment, array('source' => 'yaad-sarig-payment-gateway-for-wc'));
-        self::$logger->info('[INFO]: new token: ' . $yaadpay_token, array('source' => 'yaad-sarig-payment-gateway-for-wc'));
+        //self::$logger->info('[INFO]: yaad query data : ' . $renewal_yaad_credit_card_payment, array('source' => 'yaad-sarig-payment-gateway-for-wc'));
+        //self::$logger->info('[INFO]: new token: ' . $yaadpay_token, array('source' => 'yaad-sarig-payment-gateway-for-wc'));
         self::$logger->info('[INFO]: new id: ' . $yaadpay_id, array('source' => 'yaad-sarig-payment-gateway-for-wc'));
-        self::$logger->info('[INFO]: new exp year: ' . $yaadpay_tokef_year, array('source' => 'yaad-sarig-payment-gateway-for-wc'));
-        self::$logger->info('[INFO]: new exp month: ' . $yaadpay_tokef_month, array('source' => 'yaad-sarig-payment-gateway-for-wc'));        
+        //self::$logger->info('[INFO]: new exp year: ' . $yaadpay_tokef_year, array('source' => 'yaad-sarig-payment-gateway-for-wc'));
+        //self::$logger->info('[INFO]: new exp month: ' . $yaadpay_tokef_month, array('source' => 'yaad-sarig-payment-gateway-for-wc'));        
 
         if (WC_Gateway_Yaadpay::is_hpos()) {
             $parent_order->update_meta_data(self::YAADPAY_CC_PAYMENT_HISTORY, $orig_yaad_credit_card_payment);
@@ -544,6 +580,11 @@ final class WC_Gateway_Yaadpay extends WC_Payment_Gateway
 
     private function check_yaad_signature($order)
     {
+        if (!$this->has_signature()) {
+            self::log('[SECURITY] callback rejected: signature key not configured');
+            return false;
+        }
+
         $fild1 = isset($_GET['Fild1']) ? iconv('cp1255', 'UTF-8', $_GET['Fild1']) : '';
         $fild1 = sanitize_text_field($fild1);
         $fild1 = iconv('UTF-8', 'cp1255', $fild1);
@@ -579,8 +620,8 @@ final class WC_Gateway_Yaadpay extends WC_Payment_Gateway
         $args_string = chop($args_string, "&");
         $secret 	 = $this->get_signature();
         $verify 	 = hash_hmac('sha256', $args_string, $secret);
-        self::$logger->info('[INFO]: APISign - order #' . $order->get_id() . ' self verify hash: ' . $verify, array('source' => 'yaad-sarig-payment-gateway-for-wc'));
-        return ($verify == $Sign);
+        //self::$logger->info('[INFO]: APISign - order #' . $order->get_id() . ' self verify hash: ' . $verify, array('source' => 'yaad-sarig-payment-gateway-for-wc'));
+        return is_string($Sign) && $Sign !== '' && hash_equals($verify, strtolower($Sign));
     }
 
     function yaadpay_webhook()
@@ -605,6 +646,39 @@ final class WC_Gateway_Yaadpay extends WC_Payment_Gateway
             $res = isset($_GET['CCode']) ? sanitize_text_field($_GET['CCode']) : '';
             $order_id = isset($_GET['Order']) ? (int) sanitize_text_field($_GET['Order']) : 0;
             $order = tb_wc_object::factory(tb_wc_object::ORDER, $order_id);
+            $order_wc = wc_get_order($order_id);  
+            if (!$order_wc) {
+                wp_die('Invalid payment callback', 400);
+            }
+
+            $this->validate_signature($order);
+            $this->validate_callback_amount($order_wc);
+
+            $transaction_id = isset($_GET['Id']) ? sanitize_text_field(wp_unslash($_GET['Id'])) : '';
+            if ($transaction_id === '') {
+                wp_die('Invalid transaction ID', 400);
+            }
+            $processed_ids = $order_wc->get_meta('_yaadpay_processed_ids', true);
+            $processed_ids = is_array($processed_ids) ? $processed_ids : array();
+
+            if (in_array($transaction_id, $processed_ids, true)) {
+                status_header(200);
+                echo 'Already processed';
+                exit;
+            }
+
+            if ($order_wc->has_status(array('processing', 'completed'))) {
+                status_header(200);
+                echo 'Already processed';
+                exit;
+            }
+            if ($order_wc->has_status('refunded')) {
+                wp_die('Order already closed', 409);
+            }
+            if ($order_wc->has_status('cancelled')) {
+                self::log('[INFO]: payment received for cancelled order #' . $order_id);
+                $order_wc->add_order_note(__('Payment received after the order was cancelled for non-payment. Order reopened - please verify stock.', 'yaad-sarig-payment-gateway-for-wc'));
+            }
             $is_a_subscription = $this->test_if_subscription($order_id);
             if (($is_a_subscription) && ($res == '0')) { //} ||$res=='700' || $res=='800')){
                 $res = '1000';
@@ -613,18 +687,21 @@ final class WC_Gateway_Yaadpay extends WC_Payment_Gateway
             $l4digits = '';
             switch ($res) {
                 case '0':
-                    $this->validate_signature($order);
                     $this->process_successful_order($order, 'Yaadpay payment completed');
                     $order->payment_complete();
+                    $processed_ids[] = $transaction_id;
+                    $order_wc->update_meta_data('_yaadpay_processed_ids', $processed_ids);
+                    $order_wc->save();
                     break;
                 case '700': // j5
-                    $this->validate_signature($order);
                     $l4digits = $this->process_successful_order($order, 'Yaadpay payment -  J5');
                     $this->save_token_data($l4digits);
                     $order->update_status('on-hold');
+                    $processed_ids[] = $transaction_id;
+                    $order_wc->update_meta_data('_yaadpay_processed_ids', $processed_ids);
+                    $order_wc->save();
                     break;
                 case '800': // postpone
-                    $this->validate_signature($order);
                     $this->process_successful_order($order, 'Yaadpay payment -  Postpone');
                     update_post_meta($order->get_id(), '_yaad_postpone', 'True');
 
@@ -635,13 +712,18 @@ final class WC_Gateway_Yaadpay extends WC_Payment_Gateway
                         update_post_meta($order->get_id(), '_yaadpay_amount', $yaadpay_amount);
                     } 
                     $order->update_status('on-hold');
+                    $processed_ids[] = $transaction_id;
+                    $order_wc->update_meta_data('_yaadpay_processed_ids', $processed_ids);
+                    $order_wc->save();
                     break;
                 case '1000': // Subscription
-                    $this->validate_signature($order);
                     $l4digits = $this->process_successful_order($order, 'Yaadpay payment -  subscription');
                     $this->save_token_data($l4digits);
                     $order->payment_complete();
                     $this->update_subscription_parent_order($order->get_id());
+                    $processed_ids[] = $transaction_id;
+                    $order_wc->update_meta_data('_yaadpay_processed_ids', $processed_ids);
+                    $order_wc->save();
                     break;
                 default:
                     $this->process_error();
@@ -660,7 +742,6 @@ final class WC_Gateway_Yaadpay extends WC_Payment_Gateway
 
     function yaadpay_callback_handler()
     {
-
         @ob_end_clean();
 
         $sanitized_array = array();
@@ -670,12 +751,41 @@ final class WC_Gateway_Yaadpay extends WC_Payment_Gateway
         #self::log("Result: " . print_r($sanitized_array, true));
         self::log('yaad_payment_type: ' . $this->yaad_payment_type);
 
-
         if (!empty($_GET)) {
             $res = isset($_GET['CCode']) ? sanitize_text_field($_GET['CCode']) : '';
             $order_id = isset($_GET['Order']) ? (int) sanitize_text_field($_GET['Order']) : 0;
             $order = tb_wc_object::factory(tb_wc_object::ORDER, $order_id);
             $order_wc = wc_get_order($order_id);  
+            if (!$order_wc) {
+                wp_die('Invalid payment callback', 400);
+            }
+
+            $this->validate_signature($order);
+            $this->validate_callback_amount($order_wc);
+
+            $transaction_id = isset($_GET['Id']) ? sanitize_text_field(wp_unslash($_GET['Id'])) : '';
+            if ($transaction_id === '') {
+                wp_die('Invalid transaction ID', 400);
+            }
+            $processed_ids = $order_wc->get_meta('_yaadpay_processed_ids', true);
+            $processed_ids = is_array($processed_ids) ? $processed_ids : array();
+
+            if (in_array($transaction_id, $processed_ids, true)) {
+                wp_safe_redirect($this->get_return_url($order_wc));
+                exit;
+            }
+
+            if ($order_wc->has_status(array('processing', 'completed'))) {
+                wp_safe_redirect($this->get_return_url($order_wc));
+                exit;
+            }
+            if ($order_wc->has_status('refunded')) {
+                wp_die('Order already closed', 409);
+            }
+            if ($order_wc->has_status('cancelled')) {
+                self::log('[INFO]: payment received for cancelled order #' . $order_id);
+                $order_wc->add_order_note(__('Payment received after the order was cancelled for non-payment. Order reopened - please verify stock.', 'yaad-sarig-payment-gateway-for-wc'));
+            }
             $is_a_subscription = $this->test_if_subscription($order_id);
             if (($is_a_subscription) && ($res == '0')) { //} ||$res=='700' || $res=='800')){
                 $res = '1000';
@@ -684,20 +794,23 @@ final class WC_Gateway_Yaadpay extends WC_Payment_Gateway
             $l4digits = '';
             switch ($res) {
                 case '0':
-                    $this->validate_signature($order);
                     $this->process_successful_order($order, 'Yaadpay payment completed');
                     $order->payment_complete();
+                    $processed_ids[] = $transaction_id;
+                    $order_wc->update_meta_data('_yaadpay_processed_ids', $processed_ids);
+                    $order_wc->save();
                     wp_redirect($this->get_return_url($order));
                     break;
                 case '700': // j5
-                    $this->validate_signature($order);
                     $l4digits = $this->process_successful_order($order, 'Yaadpay payment -  J5');
                     $this->save_token_data($l4digits);
                     $order->update_status('on-hold');
+                    $processed_ids[] = $transaction_id;
+                    $order_wc->update_meta_data('_yaadpay_processed_ids', $processed_ids);
+                    $order_wc->save();
                     wp_redirect($this->get_return_url($order));
                     break;
                 case '800': // postpone
-                    $this->validate_signature($order);
                     $this->process_successful_order($order, 'Yaadpay payment -  Postpone');
 					 if (WC_Gateway_Yaadpay::is_hpos()) {
                         $order_wc->update_meta_data('_yaad_postpone', 'True');
@@ -719,14 +832,19 @@ final class WC_Gateway_Yaadpay extends WC_Payment_Gateway
                         }
                     } 
                     $order->update_status('on-hold');
+                    $processed_ids[] = $transaction_id;
+                    $order_wc->update_meta_data('_yaadpay_processed_ids', $processed_ids);
+                    $order_wc->save();
                     wp_redirect($this->get_return_url($order));
                     break;
                 case '1000': // Subscription
-                    $this->validate_signature($order);
                     $l4digits = $this->process_successful_order($order, 'Yaadpay payment -  subscription');
                     $this->save_token_data($l4digits);
                     $order->payment_complete();
                     $this->update_subscription_parent_order($order->get_id());
+                    $processed_ids[] = $transaction_id;
+                    $order_wc->update_meta_data('_yaadpay_processed_ids', $processed_ids);
+                    $order_wc->save();
                     wp_redirect($this->get_return_url($order));
                     break;
                 default:
@@ -735,6 +853,29 @@ final class WC_Gateway_Yaadpay extends WC_Payment_Gateway
             }
         } else {
             wp_die(__("Yaadpay payment failure", 'yaad-sarig-payment-gateway-for-wc'));
+        }
+    }
+
+    private function validate_callback_amount($order_wc)
+    {
+        if (!isset($_GET['Amount'])) {
+            wp_die('Missing payment amount', 400);
+        }
+
+        $raw_amount = wp_unslash($_GET['Amount']);
+        if (!is_numeric($raw_amount)) {
+            wp_die('Invalid payment amount', 400);
+        }
+
+        $callback_amount = (float) wc_format_decimal(wp_unslash($_GET['Amount']));
+        $order_amount = $this->is_trial($order_wc) ? 1.0 : (float) $order_wc->get_total();
+
+        if (abs($callback_amount - $order_amount) > 0.01) {
+            self::log(
+                '[SECURITY] Amount mismatch for order ' .
+                $order_wc->get_id()
+            );
+            wp_die('Payment amount mismatch', 400);
         }
     }
 
@@ -1159,7 +1300,7 @@ final class WC_Gateway_Yaadpay extends WC_Payment_Gateway
 
             $result_array = array();
             parse_str($resp, $result_array);
-            self::log("[INFO]: ConfirmationCode: " . print_r($result_array, true));
+            //self::log("[INFO]: ConfirmationCode: " . print_r($result_array, true));
 
             $order->add_order_note(sprintf('Yaad-Sarig payment status: %s, CCode=%s, Id=%s', ((($result_array['CCode'] == 0) || ($result_array['CCode'] == '700')) ? 'OK' : 'Failed'), sanitize_text_field($result_array['CCode']), sanitize_text_field($result_array['Id'])));
 
@@ -1361,8 +1502,6 @@ final class WC_Gateway_Yaadpay extends WC_Payment_Gateway
 
     function process_payment($order_id)
     {
-
-
         $order = tb_wc_object::factory(tb_wc_object::ORDER, $order_id);
         $params = '';
         if (isset($_POST['yaad_payments'])) {
@@ -1803,9 +1942,8 @@ final class WC_Gateway_Yaadpay extends WC_Payment_Gateway
             return '';
         }
 
-
-
         $response = wp_remote_get(add_query_arg($args, $this->get_3ds_url()), array('timeout' => 60));
+
         if (is_wp_error($response)) {
             self::log(sprintf('[ERROR]: %s', $response->get_error_message()));
             return '';
@@ -1885,10 +2023,10 @@ final class WC_Gateway_Yaadpay extends WC_Payment_Gateway
         $alternate_signature = apply_filters('tb_yaadpay_replace_signature', '');
 
         if (empty($alternate_signature) == false) {
-            self::log(sprintf("[INFO]: replacing signature: %s , with alternate signature: %s", $signature, $alternate_signature));
+            //self::log(sprintf("[INFO]: replacing signature: %s , with alternate signature: %s", $signature, $alternate_signature));
             $signature = $alternate_signature;
         }
-        self::extra_log("[INFO]: using signature: " . $signature);
+        //self::extra_log("[INFO]: using signature: " . $signature);
         return $signature;
     }
 
@@ -1899,6 +2037,7 @@ final class WC_Gateway_Yaadpay extends WC_Payment_Gateway
     {
         $this->notify_url = add_query_arg('wc-api', 'WC_Gateway_Yaadpay', home_url('/'));
         $this->notify_url = $is_ssl ? str_replace('http:', 'https:', $this->notify_url) : str_replace('https:', 'http:', $this->notify_url);
+        self::extra_log("[INFO]: build_notify_url: " . $this->notify_url);
     }
 
     final function get_license_level($key, $salt)
@@ -2033,14 +2172,14 @@ final class WC_Gateway_Yaadpay extends WC_Payment_Gateway
         self::log("[INFO]: " . __FUNCTION__ . " Start");
 
         $yaadpay_args = $this->build_yaadpay_args_for_renewal($order, $amount_to_charge);
-        //			self::log("[INFO]: args: " . print_r($yaadpay_args,true));
+        //self::log("[INFO]: args: " . print_r($yaadpay_args,true));
 
         $resp = $this->send_payment_request($yaadpay_args);
-        //			self::log("[INFO]: result: " .iconv("cp1255","UTF-8",$resp ));
+        //self::log("[INFO]: result: " .iconv("cp1255","UTF-8",$resp ));
 
         $result_array = array();
         parse_str($resp, $result_array);
-        #self::log("[INFO]: ConfirmationCode: " . print_r($result_array, true));
+        //self::log("[INFO]: ConfirmationCode: " . print_r($result_array, true));
 
         $order->add_order_note(sprintf('Subscription Renewal %s: CCode=%s, Id=%s', ($this->is_token_payment_error($result_array) ? 'Failed' : 'OK'), $result_array['CCode'], $result_array['Id']));
 
@@ -2066,7 +2205,7 @@ final class WC_Gateway_Yaadpay extends WC_Payment_Gateway
     {
 
         self::log("[INFO]: " . __FUNCTION__ . " Start");
-        self::log("[INFO]: process_token_payment" . " $order_id, $transaction_id, $token_code, $token_epiration_month, $token_expiration_year ");
+        #self::log("[INFO]: process_token_payment" . " $order_id, $transaction_id, $token_code, $token_epiration_month, $token_expiration_year ");
         $order = tb_wc_object::factory(tb_wc_object::ORDER, $order_id);
         $order_wc = wc_get_order($order_id);  
 
@@ -2080,7 +2219,7 @@ final class WC_Gateway_Yaadpay extends WC_Payment_Gateway
         parse_str($yaad_credit_card_payment, $yaad_credit_card_payment_array);
 
         if(isset($yaad_credit_card_payment_array['CCode']) && $yaad_credit_card_payment_array['CCode'] == '700' && isset($yaad_credit_card_payment_array['Payments']) && $yaad_credit_card_payment_array['Payments'] > 0) {
-            $yaadpay_args['Tash'] = $yaad_credit_card_payment_array['Payments'];
+            $yaadpay_args['Tash'] = $this->clamp_payments($yaad_credit_card_payment_array['Payments'], $order_wc->get_total());
             // if($yaad_credit_card_payment_array['Payments'] == 1) {
             //     $yaadpay_args['FixTash'] = 'True';
             // }
@@ -2094,7 +2233,7 @@ final class WC_Gateway_Yaadpay extends WC_Payment_Gateway
 
         $result_array = array();
         parse_str($resp, $result_array);
-        self::log("[INFO]: ConfirmationCode: " . print_r($result_array, true));
+        //self::log("[INFO]: ConfirmationCode: " . print_r($result_array, true));
 		
       	if (WC_Gateway_Yaadpay::is_hpos()) {
             $order_wc->update_meta_data(self::YAADPAY_TOKEN_PAYMENT, iconv('cp1255', 'UTF-8', $resp));
@@ -2111,6 +2250,16 @@ final class WC_Gateway_Yaadpay extends WC_Payment_Gateway
         }
 
         return $result_array['CCode'];
+    }
+
+    private function clamp_payments($value, $order_total)
+    {
+        $payments = (int) $value;
+        $max = max(1, (int) $this->get_max_payments($order_total));
+        if ($payments < 1) {
+            return 1;
+        }
+        return min($payments, $max);
     }
 
     /**
@@ -2132,7 +2281,7 @@ final class WC_Gateway_Yaadpay extends WC_Payment_Gateway
 
         $result_array = array();
         parse_str($resp, $result_array);
-        self::log("[INFO]: ConfirmationCode: " . print_r($result_array, true));
+        //self::log("[INFO]: ConfirmationCode: " . print_r($result_array, true));
 
         if (WC_Gateway_Yaadpay::is_hpos()) {
             $order_wc->update_meta_data(self::YAADPAY_POSTPONE_PAYMENT, iconv('cp1255', 'UTF-8', $resp));
@@ -2179,7 +2328,7 @@ final class WC_Gateway_Yaadpay extends WC_Payment_Gateway
         foreach ($fields as $key => $val) {
             $string .= "$key=$val&";
         }
-        self::log('[INFO] Token request: ' . $string);
+        //self::log('[INFO] Token request: ' . $string);
 
         $result = wp_remote_post(
             $url,
@@ -2345,7 +2494,7 @@ final class WC_Gateway_Yaadpay extends WC_Payment_Gateway
     $args_array = array();
     parse_str($arg, $args_array);
     if (isset($args_array['Payments'])) {
-        return $args_array['Payments'];
+        return $this->clamp_payments($args_array['Payments'], $order->get_total());
     }
     return '';
 }
@@ -2382,7 +2531,7 @@ final class WC_Gateway_Yaadpay extends WC_Payment_Gateway
 
         if (WC_Gateway_Yaadpay::is_hpos()) {
             $yaadpay_token = $parent_order->get_meta(self::YAADPAY_TOKEN);
-            self::log("[INFO]: yaadpay_token : " . $yaadpay_token);
+            //self::log("[INFO]: yaadpay_token : " . $yaadpay_token);
 
             $yaadpay_expiration_month = $parent_order->get_meta(self::YAADPAY_TOKEF_MONTH);
             self::log("[INFO]: yaadpay_expiration_month : " . $yaadpay_expiration_month);
@@ -2391,7 +2540,7 @@ final class WC_Gateway_Yaadpay extends WC_Payment_Gateway
             self::log("[INFO]: yaadpay_expiration_year : " . $yaadpay_expiration_year);
         } else {
             $yaadpay_token = get_post_meta($parent_order->get_id(), self::YAADPAY_TOKEN, true);
-            self::log("[INFO]: yaadpay_token : " . $yaadpay_token);
+            //self::log("[INFO]: yaadpay_token : " . $yaadpay_token);
 
             $yaadpay_expiration_month = get_post_meta($parent_order->get_id(), self::YAADPAY_TOKEF_MONTH, true);
             self::log("[INFO]: yaadpay_expiration_month : " . $yaadpay_expiration_month);
@@ -2404,7 +2553,7 @@ final class WC_Gateway_Yaadpay extends WC_Payment_Gateway
 
         $yaadpay_args['UserId'] = $this->get_yaadpay_user_id($parent_order->get_id());
 
-        self::log("[INFO]: yaadpay_args : " . print_r($yaadpay_args, true));
+        //self::log("[INFO]: yaadpay_args : " . print_r($yaadpay_args, true));
 
         return $yaadpay_args;
     }
@@ -2507,7 +2656,7 @@ final class WC_Gateway_Yaadpay extends WC_Payment_Gateway
         }
 
         self::log('[INFO]: url: ' . $url);
-        self::log('[INFO]: request string: ' . $string);
+        //self::log('[INFO]: request string: ' . $string);
 
         $yaad_post_result = wp_remote_post(
             $url,
@@ -2531,8 +2680,8 @@ final class WC_Gateway_Yaadpay extends WC_Payment_Gateway
             $result = $yaad_post_result['body'];
         }
         self::log(sprintf('[INFO]: response length: %s, type: %s', strlen($result), gettype($result)));
-        self::log($result);
-        // self::log("[INFO]: result: " .iconv("cp1255","UTF-8",$result ));
+        //self::log($result);
+        //self::log("[INFO]: result: " .iconv("cp1255","UTF-8",$result ));
 
 
         return $result;
@@ -2740,7 +2889,8 @@ final class WC_Gateway_Yaadpay extends WC_Payment_Gateway
                 if ($order_wc) {
                     $order_wc->update_meta_data(self::YAADPAY_CC_PAYMENT, $query_vars);
                     $order_wc->save();
-                    WC_Gateway_Yaadpay::log("Meta updated in HPOS: " . $query_vars);
+                    //WC_Gateway_Yaadpay::log("Meta updated in HPOS: " . $query_vars);
+                    WC_Gateway_Yaadpay::log("Meta updated in HPOS for order #" . $order_id);
                 } else {
                     WC_Gateway_Yaadpay::log("Error: wc_get_order returned null for ID " . $order_id);
                 }
@@ -2768,8 +2918,10 @@ final class WC_Gateway_Yaadpay extends WC_Payment_Gateway
      */
     private function save_hk_data($order)
     {
-        $order = tb_wc_object::factory(tb_wc_object::ORDER, $order_id);
-        $order_wc = wc_get_order($order_id);
+        $order_wc = wc_get_order($order->get_id());
+        if (!$order_wc) {
+            return;
+        }
 
         $HKId = isset($_GET['HKId']) ? (int) sanitize_text_field($_GET['HKId']) : '';
         if ($HKId !== false && $HKId !== '') {
@@ -2837,7 +2989,7 @@ final class WC_Gateway_Yaadpay extends WC_Payment_Gateway
     public function payment_fields()
     {
         $token = get_user_meta(get_current_user_id(), self::YAADPAY_TOKEN_USER, true);
-        $this->log("[INFO]: yaadpay token: " . $token);
+        //$this->log("[INFO]: yaadpay token: " . $token);
 
         if (($token == '') || ($this->yaad_allow_saved_cc == false)) {
             if (strpos($this->description, "<") !== false) {

@@ -5,8 +5,8 @@ if (!defined('ABSPATH')) exit; // Exit if accessed directly
 /**
  * Yaad Sarig Payment Gateway
  * Plugin Name: Yaad Sarig Payment Gateway For WC
- * Description: Allows receiving payments via Hyp Payments ( YaadPay )
- * Version: 2.2.13
+ * Description: Allows receiving payments via Yaad Sarig ( YaadPay )
+ * Version: 2.2.14
  * Author: YAAD-PAY & 10Bit
  * Author URI: https://yaadpay.yaad.net/developers/article.php?id=48
  * Text Domain: yaad-sarig-payment-gateway-for-wc
@@ -58,7 +58,8 @@ function yaadpay_add_scripts($hook)
 	$my_plugin_vars = array(
 		'pluginUrl' => plugin_dir_url(__FILE__),
 		'nonce' => wp_create_nonce('yaadpay_logs_nonce'), 
-        'ajax_url' => admin_url('admin-ajax.php') 
+        'ajax_url' => admin_url('admin-ajax.php'),
+		'apple_nonce' => wp_create_nonce('yaadpay_apple_file_nonce'), 
 	  );
 	wp_localize_script('admin_js', 'my_plugin_vars', $my_plugin_vars);
 }

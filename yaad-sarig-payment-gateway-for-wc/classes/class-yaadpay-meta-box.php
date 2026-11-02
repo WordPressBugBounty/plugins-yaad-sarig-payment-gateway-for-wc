@@ -408,10 +408,10 @@ final class  WC_Gateway_YaadPay_Metabox {
 					var data = {
 						'action':         'yaadpay_token_pay',
 						'orderId':        '" . $order->get_id () . "',
-						'YaadpayTK':      '" . $YaadpayTK . "',
-						'expmonth':       '" . $expmonth . "',
-						'expyear':        '" . $expyear . "',
-						'transaction_id': '" . $transaction_id . "',
+						'YaadpayTK':      " . wp_json_encode((string) $YaadpayTK) . ",
+						'expmonth':       " . wp_json_encode((string) $expmonth) . ",
+						'expyear':        " . wp_json_encode((string) $expyear) . ",
+						'transaction_id': " . wp_json_encode((string) $transaction_id) . ",
 						'security':       '" . wp_create_nonce('yaadpay_token_pay_nonce') . "'
 					};
 					jQuery.post(ajaxurl, data, function(response) {
@@ -528,12 +528,11 @@ final class  WC_Gateway_YaadPay_Metabox {
 					var data = {
 						'action':         'yaadpay_token_pay',
 						'orderId':        '" . $order->get_id () . "',
-						'YaadpayTK':      '" . $YaadpayTK . "',
-						'expmonth':       '" . $expmonth . "',
-						'expyear':        '" . $expyear . "',
-						'transaction_id': '" . $transaction_id . "',
+						'YaadpayTK':      " . wp_json_encode((string) $YaadpayTK) . ",
+						'expmonth':       " . wp_json_encode((string) $expmonth) . ",
+						'expyear':        " . wp_json_encode((string) $expyear) . ",
+						'transaction_id': " . wp_json_encode((string) $transaction_id) . ",
 						'security':       '" . wp_create_nonce('yaadpay_token_pay_nonce') . "'
-
 					};
 					jQuery.post(ajaxurl, data, function(response) {
 						if (response=='success'){
@@ -617,7 +616,7 @@ final class  WC_Gateway_YaadPay_Metabox {
 					var data = {
 						'action': 'yaadpay_commit_trans',
 						'orderId':'" . $order->get_id () . "',
-						'transaction_id':'" . $transaction_id . "',
+						'transaction_id':" . wp_json_encode((string) $transaction_id) . ",
     					'security': '" . wp_create_nonce('yaadpay_commit_trans_nonce') . "'
 					};
 					jQuery.post(ajaxurl, data, function(response) {
@@ -694,7 +693,7 @@ final class  WC_Gateway_YaadPay_Metabox {
 					var data = {
 						'action': 'yaadpay_commit_trans',
 						'orderId':'" . $order->get_id () . "',
-						'transaction_id':'" . $transaction_id . "',
+						'transaction_id':" . wp_json_encode((string) $transaction_id) . ",
 						'security': '" . wp_create_nonce('yaadpay_commit_trans_nonce') . "'
 					};
 					jQuery.post(ajaxurl, data, function(response) {
@@ -780,7 +779,7 @@ final class  WC_Gateway_YaadPay_Metabox {
 				var yaadpay_id = jQuery("#yaadpay_id").val();
 		        var data = {
             		"action" : "yaadpay_get_token_data",
-            		"transaction_id" : "'.$trans_id.'",
+					"transaction_id" : '.wp_json_encode((string) $trans_id).',
             		"order_id": "'.$order->get_id().'",
 					"security": "'.wp_create_nonce('yaadpay_get_token_data_nonce').'"
         		};
@@ -848,7 +847,7 @@ final class  WC_Gateway_YaadPay_Metabox {
 				var yaadpay_id = jQuery("#yaadpay_id").val();
 		        var data = {
             		"action" : "yaadpay_get_token_data",
-            		"transaction_id" : "'.$trans_id.'",
+					"transaction_id" : '.wp_json_encode((string) $trans_id).',
             		"order_id": "'.$order->get_id().'",
 					"security": "'.wp_create_nonce('yaadpay_get_token_data_nonce').'"
         		};
